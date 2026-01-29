@@ -62,5 +62,26 @@ describe CopyCourseController, type: :request do
         expect(response).to redirect_to(%r{courses/none/Black_life_matters_\(none\)})
       end
     end
+    context 'when the copy is successful and has specific flags' do
+      let(:initial_flags) { { 'peer_review_count' => 5 } }
+      let(:course) { create(:basic_course, flags: initial_flags) }
+
+      before do
+        allow_any_instance_of(ApplicationController).to receive(:current_user).and_return(admin)
+        allow_any_instance_of(CopyCourse).to receive(:make_copy).and_return(
+          { course: course, error: nil }
+        )
+      end
+
+      it 'preserves original flags when updating timeline_enabled' do
+        subject
+        expect(response).to redirect_to("/courses/#{course.slug}")
+        course.reload
+        # It should have timeline_enabled: true (set by controller)
+        expect(course.flags['timeline_enabled']).to eq(true)
+        # It should RETAIN peer_review_count: 5 (set by service)
+        expect(course.flags['peer_review_count']).to eq(5)
+      end
+    end
   end
 end

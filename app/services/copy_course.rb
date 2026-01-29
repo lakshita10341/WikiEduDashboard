@@ -41,6 +41,12 @@ class CopyCourse # rubocop:disable Metrics/ClassLength
       copied_data['flags']['update_logs'] =
         fix_update_logs_parsing(copied_data['flags']['update_logs'])
     end
+    
+    # Peer review count is a top-level attribute in the API response, but stored in flags
+    if @course_data.key?('peer_review_count')
+      copied_data['flags'][:peer_review_count] = @course_data['peer_review_count']
+    end
+
     # Create the course
     @course = Course.create!(copied_data)
   end
@@ -159,10 +165,17 @@ class CopyCourse # rubocop:disable Metrics/ClassLength
 
   def copy_blocks(week, blocks)
     blocks.each do |block_data|
+      block_data['content'] = resolve_relative_links(block_data['content'])
       block = Block.create!(content: block_data['content'], title: block_data['title'],
                             week_id: week.id, order: block_data['order'], kind: block_data['kind'])
       update_block_content(block, block_data)
     end
+  end
+
+  def resolve_relative_links(content)
+    return content if content.blank?
+
+    content.gsub(/href=(['"])\//, "href=\\1#{@host}/")
   end
 
   def update_block_content(block, block_data)

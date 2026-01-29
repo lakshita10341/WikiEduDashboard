@@ -43,6 +43,7 @@ describe CopyCourse do
             }
           }
         },
+        "peer_review_count": 5,
         "wikis": [
           {
             "language": "en",
@@ -266,6 +267,39 @@ describe CopyCourse do
       course.flags['update_logs'].each do |key, _value|
         expect(key).to be_a(Integer)
       end
+      
+      expect(course.flags['peer_review_count']).to eq(5)
+    end
+    it 'resolves relative links in timeline content' do
+      # Stub the response to the course request
+      stub_request(:get, course_url)
+        .to_return(status: 200, body: course_response_body, headers: {})
+
+      # Stub the response to the categories request
+      stub_request(:get, categories_url)
+        .to_return(status: 200, body: categories_response_body, headers: {})
+
+      stub_request(:get, training_modules_url)
+        .to_return(status: 200, body: '{}', headers: {})
+
+      # Stub the response to the timeline request with relative links
+      timeline_with_links = timeline_response_body.gsub('Welcome to your Wikipedia assignment',
+                                                        'Welcome to your <a href=\"/relative/link\">Wikipedia assignment</a>')
+      stub_request(:get, timeline_url)
+        .to_return(status: 200, body: timeline_with_links, headers: {})
+
+      # Stub the response to the users request
+      stub_request(:get, users_url)
+        .to_return(status: 200, body: users_response_body, headers: {})
+
+      result = subject
+
+      # No error was returned
+      expect(result[:error]).to be_nil
+
+      course = Course.find_by(slug: existent_prod_course_slug)
+      block_content = course.weeks.first.blocks.first.content
+      expect(block_content).to include('href="https://dashboard.wikiedu.org/relative/link"')
     end
   end
 end

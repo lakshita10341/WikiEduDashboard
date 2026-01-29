@@ -15,7 +15,7 @@ class CopyCourseController < ApplicationController
     else
       course = response[:course]
       course.update(
-        flags: { timeline_enabled: true },
+        flags: course.flags.merge('timeline_enabled' => true),
         cloned_status: 3,
         expected_students: course.expected_students || 0,
         term: ''
