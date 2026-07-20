@@ -32,7 +32,9 @@ class SystemStatsController < ApplicationController
     snapshots = recent_monthly_snapshots
     {
       kpis: kpis_for(latest_snapshot),
-      trends: trends_for(snapshots)
+      trends: trends_for(snapshots),
+      campaigns: Campaign.all.order(:title).map { |c| { slug: c.slug, title: c.title } },
+      wikis: Wiki.all.map(&:domain).compact.uniq.sort
     }
   end
 
