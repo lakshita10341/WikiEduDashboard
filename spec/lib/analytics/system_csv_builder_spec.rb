@@ -23,7 +23,7 @@ describe SystemCsvBuilder do
                     type: 'ClassroomProgramCourse',
                     home_wiki: en_wiki)
   end
-            
+
   # Archived course: ended well in the past
   let!(:archived_fr_course) do
     create(:course, slug: 'school/archived_fr_(term)',
