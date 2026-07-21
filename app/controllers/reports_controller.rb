@@ -29,6 +29,15 @@ class ReportsController < ApplicationController
   #######################
 
   CSV_PATH = '/system/analytics'
+  SYSTEM_CSV_FILENAME_PREFIXES = {
+    campaign_slug: 'campaign',
+    start_date: 'from',
+    end_date: 'to',
+    wiki_domain: 'wiki',
+    course_type: 'type',
+    status: 'status'
+  }.freeze
+
 
   def set_sidekiq_job_context
     SidekiqJobContext.username = current_user.username if current_user
@@ -102,18 +111,8 @@ class ReportsController < ApplicationController
 
     if File.exist?("public#{CSV_PATH}/#{filename}")
       redirect_to "#{CSV_PATH}/#{filename}"
-    elsif Rails.env.development?
-      ReportCsvWorker.new.perform(nil, filename, 'system_csv', nil, filters.to_json)
-      redirect_to "#{CSV_PATH}/#{filename}"
     else
-      ReportCsvWorker.generate_csv(
-        source: nil,
-        filename: filename,
-        type: 'system_csv',
-        include_course: nil,
-        filters: filters
-      )
-      render plain: 'This file is being generated. Please try again shortly.', status: :ok
+      generate_system_csv(filename, filters)
     end
   end
 
@@ -169,15 +168,22 @@ class ReportsController < ApplicationController
           .reject { |_, v| v.blank? }
   end
 
+  def generate_system_csv(filename, filters)
+    if Rails.env.development?
+      ReportCsvWorker.new.perform(nil, filename, 'system_csv', nil, filters.to_json)
+      redirect_to "#{CSV_PATH}/#{filename}"
+    else
+      ReportCsvWorker.generate_csv(source: nil, filename:, type: 'system_csv',
+                                   include_course: nil, filters:)
+      render plain: 'This file is being generated. Please try again shortly.', status: :ok
+    end
+  end
+
   def build_system_csv_filename(filters)
-    parts = ['system-csv']
-    parts << "campaign-#{filters[:campaign_slug]}" if filters[:campaign_slug]
-    parts << "from-#{filters[:start_date]}" if filters[:start_date]
-    parts << "to-#{filters[:end_date]}" if filters[:end_date]
-    parts << "wiki-#{filters[:wiki_domain]}" if filters[:wiki_domain]
-    parts << "type-#{filters[:course_type]}" if filters[:course_type]
-    parts << "status-#{filters[:status]}" if filters[:status]
-    parts << Time.zone.today.to_s
+    filter_parts = SYSTEM_CSV_FILENAME_PREFIXES.filter_map do |key, prefix|
+      "#{prefix}-#{filters[key]}" if filters[key].present?
+    end
+    parts = ['system-csv', *filter_parts, Time.zone.today.to_s]
     "#{parts.join('-')}.csv".tr('/', '-')
   end
 
